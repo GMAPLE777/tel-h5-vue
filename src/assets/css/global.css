@@ -1,5 +1,16 @@
 /* src/assets/css/global.css — 全局样式 */
 
+/* ========== 动态根字号（rem 适配） ========== */
+/*
+ * 设计稿宽度 375px，rootValue = 37.5
+ * 字号公式：10vw = viewport / 375 * 37.5
+ * 375px屏 → 37.5px  414px屏 → 41.4px
+ * 桌面端上限 54px（等效 540px 屏宽），防止元素过大
+ */
+html {
+  font-size: min(10vw, 54px);
+}
+
 /* ========== CSS Reset ========== */
 *,
 *::before,
