@@ -49,14 +49,17 @@
 
     <!-- 套餐列表 -->
     <div class="package-list">
-      <PackageCard
-        v-for="pkg in filteredPackages"
-        :key="pkg.id"
-        :data="pkg"
-      />
-      <div v-if="filteredPackages.length === 0" class="package-list__empty">
-        暂无匹配套餐
-      </div>
+      <div v-if="loading" class="package-list__loading">加载中...</div>
+      <template v-else>
+        <PackageCard
+          v-for="pkg in filteredPackages"
+          :key="pkg.id"
+          :data="pkg"
+        />
+        <div v-if="filteredPackages.length === 0" class="package-list__empty">
+          暂无匹配套餐
+        </div>
+      </template>
     </div>
 
     <!-- 底部占位 -->
@@ -140,6 +143,7 @@ const onTouchEnd = (e) => {
 
 onMounted(() => {
   startAutoPlay()
+  fetchPackages()
 })
 
 onUnmounted(() => {
@@ -161,63 +165,23 @@ const handleCategoryChange = (id) => {
   activeCategory.value = id
 }
 
-// ==================== 套餐列表静态数据 ====================
-const packages = ref([
-  {
-    id: 1,
-    name: '5G畅享套餐A',
-    tag: '热卖',
-    desc: '30GB流量 + 200分钟通话',
-    price: 39,
-    features: ['5G网络', '30GB流量', '200分钟'],
-    category: '5g',
-  },
-  {
-    id: 2,
-    name: '5G畅享套餐B',
-    tag: '推荐',
-    desc: '60GB流量 + 500分钟通话',
-    price: 59,
-    features: ['5G网络', '60GB流量', '500分钟', '含视频会员'],
-    category: '5g',
-  },
-  {
-    id: 3,
-    name: '家庭融合套餐',
-    tag: '',
-    desc: '100GB共享流量 + 1000分钟通话',
-    price: 99,
-    features: ['3张副卡', '100GB共享', '1000分钟', '宽带300M'],
-    category: 'family',
-  },
-  {
-    id: 4,
-    name: '流量畅享套餐',
-    tag: '新品',
-    desc: '100GB超大流量 不限速',
-    price: 49,
-    features: ['100GB流量', '不限速', '免流APP'],
-    category: 'data',
-  },
-  {
-    id: 5,
-    name: '青春校园卡',
-    tag: '',
-    desc: '20GB流量 + 100分钟通话',
-    price: 19,
-    features: ['20GB流量', '100分钟', '校园权益'],
-    category: 'youth',
-  },
-  {
-    id: 6,
-    name: '5G尊享套餐',
-    tag: '旗舰',
-    desc: '200GB流量 + 2000分钟通话',
-    price: 199,
-    features: ['5G极速', '200GB流量', '2000分钟', '宽带1000M', '含视频会员'],
-    category: '5g',
-  },
-])
+// ==================== 套餐列表（从 API 获取） ====================
+const packages = ref([])
+const loading = ref(false)
+
+const fetchPackages = async () => {
+  loading.value = true
+  try {
+    const res = await import('@/api/package').then((m) => m.getPackageList())
+    if (res.code === 0) {
+      packages.value = res.data.list
+    }
+  } catch (e) {
+    console.error('获取套餐列表失败:', e)
+  } finally {
+    loading.value = false
+  }
+}
 
 const filteredPackages = computed(() => {
   if (activeCategory.value === 'all') {
@@ -350,6 +314,13 @@ const tabList = [
 /* ========== 套餐列表 ========== */
 .package-list {
   padding-top: 12px;
+}
+
+.package-list__loading {
+  text-align: center;
+  padding: 60px 0;
+  font-size: 14px;
+  color: #999;
 }
 
 .package-list__empty {

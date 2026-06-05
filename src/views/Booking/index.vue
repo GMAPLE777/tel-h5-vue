@@ -3,8 +3,13 @@
     <!-- 顶部导航 -->
     <NavBar title="在线预约" :show-back="true" />
 
+    <!-- 已选套餐加载中 -->
+    <div v-if="packageLoading" class="selected-package selected-package--loading">
+      加载套餐信息...
+    </div>
+
     <!-- 已选套餐信息 -->
-    <div v-if="selectedPackage" class="selected-package">
+    <div v-else-if="selectedPackage" class="selected-package">
       <div class="selected-package__header flex-between">
         <h3 class="selected-package__title">已选套餐</h3>
         <span class="selected-package__change" @click="goBack">重新选择</span>
@@ -86,62 +91,67 @@
     <div class="booking-bottom">
       <button
         class="booking-btn"
-        :class="{ disabled: !canSubmit }"
-        :disabled="!canSubmit"
+        :class="{ disabled: !canSubmit || submitting }"
+        :disabled="!canSubmit || submitting"
         @click="handleSubmit"
       >
-        提交预约
+        {{ submitting ? '提交中...' : '提交预约' }}
       </button>
       <p class="booking-tip">
         提交即表示同意《用户服务协议》及《隐私政策》
       </p>
     </div>
+
+    <!-- 成功弹窗 -->
+    <Dialog
+      v-model:visible="showSuccessModal"
+      title="预约成功"
+      content="您的预约申请已提交，工作人员将在24小时内与您联系确认。"
+      confirm-text="返回首页"
+      :show-cancel="false"
+      @confirm="handleSuccessConfirm"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import NavBar from '@/components/NavBar.vue'
+import { getPackageDetail, submitBooking } from '@/api/package'
+import Dialog from '@/components/Dialog.vue'
 
 const router = useRouter()
 const route = useRoute()
 
-// ==================== 已选套餐（从路由参数获取） ====================
-// 静态数据，Phase 4 接入接口后替换
-const packagesMap = {
-  1: { name: '5G畅享套餐A', specs: { 1: '基础版', 2: '畅享版', 3: '尊享版' }, price: 39 },
-  2: { name: '5G畅享套餐B', specs: { 1: '基础版', 2: '畅享版' }, price: 59 },
-  3: { name: '家庭融合套餐', specs: { 1: '标准版' }, price: 99 },
-  4: { name: '流量畅享套餐', specs: { 1: '基础版' }, price: 49 },
-  5: { name: '青春校园卡', specs: { 1: '标准版' }, price: 19 },
-  6: { name: '5G尊享套餐', specs: { 1: '基础版' }, price: 199 },
-}
+// ==================== 已选套餐（从 API 获取） ====================
+const selectedPackage = ref(null)
+const packageLoading = ref(false)
 
-const packageId = computed(() => {
+const fetchSelectedPackage = async () => {
   const id = Number(route.query.packageId)
-  return id || 0
-})
-
-const specId = computed(() => {
-  const id = Number(route.query.specId)
-  return id || 1
-})
-
-const selectedPackage = computed(() => {
-  const pkg = packagesMap[packageId.value]
-  if (!pkg) return null
-  const specPriceMap = {
-    1: { 1: 39, 2: 59, 3: 99 },
-    2: { 1: 59, 2: 79 },
+  if (!id) return
+  packageLoading.value = true
+  try {
+    const res = await getPackageDetail(id)
+    if (res.code === 0) {
+      const detail = res.data
+      const specIdVal = Number(route.query.specId) || 1
+      const spec = detail.specs.find((s) => s.id === specIdVal) || detail.specs[0]
+      selectedPackage.value = {
+        id: detail.id,
+        name: detail.name,
+        specId: spec.id,
+        specName: spec.name,
+        price: spec.price,
+      }
+    }
+  } catch (e) {
+    console.error('获取套餐信息失败:', e)
+  } finally {
+    packageLoading.value = false
   }
-  const price = (specPriceMap[packageId.value] && specPriceMap[packageId.value][specId.value]) || pkg.price
-  return {
-    name: pkg.name,
-    specName: pkg.specs[specId.value] || '标准版',
-    price,
-  }
-})
+}
 
 const goBack = () => {
   router.back()
@@ -169,10 +179,16 @@ const canSubmit = computed(() => {
   return selectedPackage.value && form.name.trim() && form.phone.trim()
 })
 
-const handleSubmit = () => {
-  // Phase 5 补充完整校验逻辑
-  submitted.value = true
-  // 简单校验示意
+// ==================== 提交中状态 ====================
+const submitting = ref(false)
+
+// ==================== 成功弹窗 ====================
+const showSuccessModal = ref(false)
+
+const handleSubmit = async () => {
+  // 校验
+  errors.name = ''
+  errors.phone = ''
   if (!form.name.trim()) {
     errors.name = '请输入姓名'
     return
@@ -185,9 +201,40 @@ const handleSubmit = () => {
     errors.phone = '请输入正确的手机号'
     return
   }
-  // 提交成功跳转
-  router.push('/booking/success')
+  if (!selectedPackage.value) {
+    return
+  }
+
+  submitting.value = true
+  try {
+    const res = await submitBooking({
+      name: form.name.trim(),
+      phone: form.phone.trim(),
+      packageId: selectedPackage.value.id,
+      specId: selectedPackage.value.specId,
+      remark: form.remark.trim(),
+    })
+    if (res.code === 0) {
+      showSuccessModal.value = true
+    } else {
+      alert(res.message || '提交失败，请重试')
+    }
+  } catch (e) {
+    console.error('提交预约失败:', e)
+    alert('网络异常，请稍后重试')
+  } finally {
+    submitting.value = false
+  }
 }
+
+const handleSuccessConfirm = () => {
+  showSuccessModal.value = false
+  router.push('/')
+}
+
+onMounted(() => {
+  fetchSelectedPackage()
+})
 </script>
 
 <style scoped>
@@ -204,6 +251,14 @@ const handleSubmit = () => {
   background: #fff;
   border-radius: 10px;
   border-left: 4px solid #1989fa;
+}
+
+.selected-package--loading {
+  text-align: center;
+  color: #999;
+  font-size: 14px;
+  padding: 28px 16px;
+  border-left-color: #ccc;
 }
 
 .selected-package__header {

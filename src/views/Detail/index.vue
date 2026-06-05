@@ -3,8 +3,11 @@
     <!-- 顶部导航 -->
     <NavBar title="套餐详情" :show-back="true" />
 
+    <!-- 加载中 -->
+    <div v-if="loading" class="detail-loading">加载中...</div>
+
     <!-- 套餐基础信息卡片 -->
-    <div class="package-header">
+    <div v-if="packageInfo" class="package-header">
       <div class="package-header__top flex-between">
         <div>
           <h2 class="package-header__name">{{ packageInfo.name }}</h2>
@@ -19,7 +22,7 @@
     </div>
 
     <!-- 套餐权益 -->
-    <div class="section">
+    <div v-if="packageInfo" class="section">
       <h3 class="section__title">套餐权益</h3>
       <div class="benefits">
         <div v-for="benefit in packageInfo.benefits" :key="benefit.label" class="benefit-item">
@@ -33,7 +36,7 @@
     </div>
 
     <!-- 资费说明 -->
-    <div class="section">
+    <div v-if="packageInfo" class="section">
       <h3 class="section__title">资费说明</h3>
       <div class="fee-table">
         <div class="fee-table__row fee-table__row--head">
@@ -52,7 +55,7 @@
     </div>
 
     <!-- 套餐规格选择 -->
-    <div class="section">
+    <div v-if="packageInfo" class="section">
       <h3 class="section__title">套餐规格</h3>
       <div class="spec-list">
         <div
@@ -89,58 +92,39 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import NavBar from '@/components/NavBar.vue'
+import { getPackageDetail } from '@/api/package'
 
 const router = useRouter()
+const route = useRoute()
 
-// ==================== 套餐静态数据 ====================
-const packageInfo = ref({
-  id: 1,
-  name: '5G畅享套餐A',
-  tag: '热卖',
-  desc: '30GB高速流量 + 200分钟国内通话，畅享5G极速网络，支持多终端共享',
-  benefits: [
-    { icon: '/icons/benefit-data.svg', label: '通用流量', value: '30GB/月' },
-    { icon: '/icons/benefit-call.svg', label: '语音通话', value: '200分钟/月' },
-    { icon: '/icons/benefit-5g.svg', label: '5G网络', value: '极速上网' },
-    { icon: '/icons/benefit-video.svg', label: '视频会员', value: '赠送3个月' },
-  ],
-  feeDetail: [
-    { item: '月基本费', content: '39元/月' },
-    { item: '套外流量', content: '5元/GB' },
-    { item: '套外通话', content: '0.15元/分钟' },
-    { item: '国内短信', content: '0.1元/条' },
-    { item: '来电显示', content: '免费' },
-    { item: '合约期', content: '12个月' },
-  ],
-  specs: [
-    {
-      id: 1,
-      name: '基础版',
-      price: 39,
-      features: ['30GB流量', '200分钟通话', '5G上网'],
-    },
-    {
-      id: 2,
-      name: '畅享版',
-      price: 59,
-      features: ['60GB流量', '500分钟通话', '5G上网', '含视频会员'],
-    },
-    {
-      id: 3,
-      name: '尊享版',
-      price: 99,
-      features: ['100GB流量', '1000分钟通话', '5G极速', '含视频会员', '宽带300M'],
-    },
-  ],
-})
+// ==================== 从 API 获取套餐详情 ====================
+const packageInfo = ref(null)
+const loading = ref(false)
+
+const fetchDetail = async () => {
+  const id = Number(route.params.id)
+  if (!id) return
+  loading.value = true
+  try {
+    const res = await getPackageDetail(id)
+    if (res.code === 0) {
+      packageInfo.value = res.data
+    }
+  } catch (e) {
+    console.error('获取套餐详情失败:', e)
+  } finally {
+    loading.value = false
+  }
+}
 
 // ==================== 规格选择 ====================
 const selectedSpec = ref(1)
 
 const currentPrice = computed(() => {
+  if (!packageInfo.value) return 0
   const spec = packageInfo.value.specs.find((s) => s.id === selectedSpec.value)
   return spec ? spec.price : packageInfo.value.specs[0].price
 })
@@ -153,6 +137,10 @@ const handleSpecChange = (id) => {
 const handleBooking = () => {
   router.push(`/booking?packageId=${packageInfo.value.id}&specId=${selectedSpec.value}`)
 }
+
+onMounted(() => {
+  fetchDetail()
+})
 </script>
 
 <style scoped>
@@ -160,6 +148,13 @@ const handleBooking = () => {
   min-height: 100vh;
   background: #f5f5f5;
   padding-bottom: 60px;
+}
+
+.detail-loading {
+  text-align: center;
+  padding: 60px 0;
+  font-size: 14px;
+  color: #999;
 }
 
 /* ========== 套餐头部 ========== */
