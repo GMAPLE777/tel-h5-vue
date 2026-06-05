@@ -3,11 +3,15 @@
     <!-- 顶部导航 -->
     <NavBar title="套餐详情" :show-back="true" />
 
-    <!-- 加载中 -->
+    <!-- 加载中 / 加载失败 -->
     <div v-if="loading" class="detail-loading">加载中...</div>
+    <div v-else-if="!packageInfo" class="detail-loading">
+      加载失败，请<a class="detail-retry" @click="fetchDetail">点击重试</a>
+    </div>
 
     <!-- 套餐基础信息卡片 -->
-    <div v-if="packageInfo" class="package-header">
+    <template v-else>
+    <div class="package-header">
       <div class="package-header__top flex-between">
         <div>
           <h2 class="package-header__name">{{ packageInfo.name }}</h2>
@@ -22,7 +26,7 @@
     </div>
 
     <!-- 套餐权益 -->
-    <div v-if="packageInfo" class="section">
+    <div class="section">
       <h3 class="section__title">套餐权益</h3>
       <div class="benefits">
         <div v-for="benefit in packageInfo.benefits" :key="benefit.label" class="benefit-item">
@@ -36,7 +40,7 @@
     </div>
 
     <!-- 资费说明 -->
-    <div v-if="packageInfo" class="section">
+    <div class="section">
       <h3 class="section__title">资费说明</h3>
       <div class="fee-table">
         <div class="fee-table__row fee-table__row--head">
@@ -55,7 +59,7 @@
     </div>
 
     <!-- 套餐规格选择 -->
-    <div v-if="packageInfo" class="section">
+    <div class="section">
       <h3 class="section__title">套餐规格</h3>
       <div class="spec-list">
         <div
@@ -88,6 +92,7 @@
       </div>
       <button class="detail-bar__btn" @click="handleBooking">立即预约</button>
     </div>
+    </template>
   </div>
 </template>
 
@@ -110,8 +115,12 @@ const fetchDetail = async () => {
   loading.value = true
   try {
     const res = await getPackageDetail(id)
-    if (res.code === 0) {
+    if (res.code === 0 && res.data) {
       packageInfo.value = res.data
+      // 默认选中第一个规格
+      if (res.data.specs && res.data.specs.length > 0) {
+        selectedSpec.value = res.data.specs[0].id
+      }
     }
   } catch (e) {
     console.error('获取套餐详情失败:', e)
@@ -155,6 +164,12 @@ onMounted(() => {
   padding: 60px 0;
   font-size: 14px;
   color: #999;
+}
+
+.detail-retry {
+  color: #1989fa;
+  cursor: pointer;
+  text-decoration: underline;
 }
 
 /* ========== 套餐头部 ========== */

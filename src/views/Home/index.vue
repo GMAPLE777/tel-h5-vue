@@ -107,7 +107,10 @@ let timer = null
 const interval = 3000
 let touchStartX = 0
 
+const shouldAutoPlay = computed(() => banners.value.length > 1)
+
 const startAutoPlay = () => {
+  if (!shouldAutoPlay.value) return
   stopAutoPlay()
   timer = setInterval(() => {
     currentIndex.value = (currentIndex.value + 1) % banners.value.length

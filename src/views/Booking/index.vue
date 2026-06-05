@@ -3,9 +3,12 @@
     <!-- 顶部导航 -->
     <NavBar title="在线预约" :show-back="true" />
 
-    <!-- 已选套餐加载中 -->
+    <!-- 加载/错误状态 -->
     <div v-if="packageLoading" class="selected-package selected-package--loading">
       加载套餐信息...
+    </div>
+    <div v-else-if="packageError" class="selected-package selected-package--error">
+      加载失败，请<a class="error-link" @click="fetchSelectedPackage">点击重试</a>
     </div>
 
     <!-- 已选套餐信息 -->
@@ -119,6 +122,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import NavBar from '@/components/NavBar.vue'
 import { getPackageDetail, submitBooking } from '@/api/package'
+import { validatePhone, isEmpty } from '@/utils/validate'
 import Dialog from '@/components/Dialog.vue'
 
 const router = useRouter()
@@ -127,16 +131,19 @@ const route = useRoute()
 // ==================== 已选套餐（从 API 获取） ====================
 const selectedPackage = ref(null)
 const packageLoading = ref(false)
+const packageError = ref(false)
 
 const fetchSelectedPackage = async () => {
   const id = Number(route.query.packageId)
   if (!id) return
   packageLoading.value = true
+  packageError.value = false
   try {
     const res = await getPackageDetail(id)
-    if (res.code === 0) {
+    if (res.code === 0 && res.data) {
       const detail = res.data
-      const specIdVal = Number(route.query.specId) || 1
+      // 默认选中第一个规格（后续会从路由参数读取）
+      const specIdVal = Number(route.query.specId) || detail.specs[0]?.id
       const spec = detail.specs.find((s) => s.id === specIdVal) || detail.specs[0]
       selectedPackage.value = {
         id: detail.id,
@@ -145,9 +152,12 @@ const fetchSelectedPackage = async () => {
         specName: spec.name,
         price: spec.price,
       }
+    } else {
+      packageError.value = true
     }
   } catch (e) {
     console.error('获取套餐信息失败:', e)
+    packageError.value = true
   } finally {
     packageLoading.value = false
   }
@@ -169,8 +179,6 @@ const errors = reactive({
   phone: '',
 })
 
-const submitted = ref(false)
-
 const clearError = (field) => {
   errors[field] = ''
 }
@@ -186,18 +194,20 @@ const submitting = ref(false)
 const showSuccessModal = ref(false)
 
 const handleSubmit = async () => {
-  // 校验
+  // 清空错误
   errors.name = ''
   errors.phone = ''
-  if (!form.name.trim()) {
+
+  // 校验
+  if (isEmpty(form.name)) {
     errors.name = '请输入姓名'
     return
   }
-  if (!form.phone.trim()) {
+  if (isEmpty(form.phone)) {
     errors.phone = '请输入手机号'
     return
   }
-  if (!/^1[3-9]\d{9}$/.test(form.phone.trim())) {
+  if (!validatePhone(form.phone.trim())) {
     errors.phone = '请输入正确的手机号'
     return
   }
@@ -253,12 +263,23 @@ onMounted(() => {
   border-left: 4px solid #1989fa;
 }
 
-.selected-package--loading {
+.selected-package--loading,
+.selected-package--error {
   text-align: center;
   color: #999;
   font-size: 14px;
   padding: 28px 16px;
   border-left-color: #ccc;
+}
+
+.selected-package--error {
+  color: #ee5a24;
+}
+
+.error-link {
+  color: #1989fa;
+  cursor: pointer;
+  text-decoration: underline;
 }
 
 .selected-package__header {
