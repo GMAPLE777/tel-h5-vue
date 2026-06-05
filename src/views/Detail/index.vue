@@ -123,7 +123,7 @@ const fetchDetail = async () => {
       }
     }
   } catch (e) {
-    console.error('获取套餐详情失败:', e)
+    if (import.meta.env.DEV) console.error('获取套餐详情失败:', e)
   } finally {
     loading.value = false
   }

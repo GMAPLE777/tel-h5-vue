@@ -156,7 +156,7 @@ const fetchSelectedPackage = async () => {
       packageError.value = true
     }
   } catch (e) {
-    console.error('获取套餐信息失败:', e)
+    if (import.meta.env.DEV) console.error('获取套餐信息失败:', e)
     packageError.value = true
   } finally {
     packageLoading.value = false
@@ -230,7 +230,7 @@ const handleSubmit = async () => {
       alert(res.message || '提交失败，请重试')
     }
   } catch (e) {
-    console.error('提交预约失败:', e)
+    if (import.meta.env.DEV) console.error('提交预约失败:', e)
     alert('网络异常，请稍后重试')
   } finally {
     submitting.value = false

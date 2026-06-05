@@ -11,7 +11,9 @@ request.interceptors.response.use(
     return response.data
   },
   (error) => {
-    console.error('请求异常:', error.message)
+    if (import.meta.env.DEV) {
+      console.error('请求异常:', error.message)
+    }
     return Promise.reject(error)
   }
 )

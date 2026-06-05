@@ -180,7 +180,7 @@ const fetchPackages = async () => {
       packages.value = res.data.list
     }
   } catch (e) {
-    console.error('获取套餐列表失败:', e)
+    if (import.meta.env.DEV) console.error('获取套餐列表失败:', e)
   } finally {
     loading.value = false
   }
