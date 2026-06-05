@@ -1,16 +1,5 @@
 /* src/assets/css/global.css — 全局样式 */
 
-/* ========== 动态根字号（rem 适配） ========== */
-/*
- * 设计稿宽度 375px，rootValue = 37.5
- * 字号公式：10vw = viewport / 375 * 37.5
- * 375px屏 → 37.5px  414px屏 → 41.4px
- * 桌面端上限 54px（等效 540px 屏宽），防止元素过大
- */
-html {
-  font-size: min(10vw, 54px);
-}
-
 /* ========== CSS Reset ========== */
 *,
 *::before,
@@ -28,7 +17,7 @@ html, body {
     sans-serif;
   font-size: 14px;
   color: #333;
-  background-color: #f5f5f5;
+  background-color: #e8e8e8;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -72,6 +61,16 @@ input, button {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+/* ========== 固定元素桌面端约束 ========== */
+@media (min-width: 541px) {
+  .navbar,
+  .tabbar,
+  .detail-bar {
+    left: calc((100vw - 540px) / 2) !important;
+    right: calc((100vw - 540px) / 2) !important;
+  }
 }
 
 /* ========== 安全区域适配 ========== */
